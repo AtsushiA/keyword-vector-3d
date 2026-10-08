@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>キーワード距離 3D ビューア</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  :root {
+    --bg: #F7F5EF;
+    --panel: #FFFDF8;
+    --line: #E2DDD0;
+    --ink: #1B2340;
+    --ink-soft: #4A5160;
+    --muted: #6B7280;
+    --accent: #B5531F;
+    --accent-soft: #F0A673;
+    --stage: #141B33;
+    --stage-ink: #C9CFDF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Noto Sans JP', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  header {
+    padding: 20px 24px 8px;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px;
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 16px;
+    padding: 12px 24px 16px;
+  }
+  .panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+
+  form { display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1; min-width: 0;
+    font: inherit; color: var(--ink);
+    padding: 9px 12px;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: #fff;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  button {
+    font: inherit; font-weight: 700; cursor: pointer;
+    border: none; border-radius: 10px;
+    padding: 9px 16px;
+    background: var(--ink); color: #F7F5EF;
+  }
+  button:hover { filter: brightness(1.15); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.ghost {
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--line); font-weight: 500; padding: 6px 12px; font-size: 13px;
+  }
+  .row-btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .hint { margin: 0; color: var(--muted); font-size: 13px; }
+
+  .chips { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 2px;
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 2px 4px 2px 10px; font-size: 14px;
+  }
+  .chip.sel { border-color: var(--accent); box-shadow: 0 0 0 2px #F0A67366; }
+  .chip .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-right: 4px; }
+  .chip .name { background: none; color: var(--ink); padding: 2px 4px; font-weight: 500; font-size: 14px; }
+  .chip .del { background: none; color: var(--muted); padding: 0 8px; font-size: 16px; line-height: 1; }
+  .chip .del:hover { color: var(--accent); }
+
+  .ranking { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .ranking li { display: grid; grid-template-columns: 7em 1fr 3.6em; gap: 8px; align-items: center; font-size: 14px; }
+  .ranking .w { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ranking .bar { height: 10px; background: #EDE8DC; border-radius: 999px; overflow: hidden; }
+  .ranking .bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+  .ranking .v { font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; color: var(--ink-soft); }
+
+  .slider { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+  .slider output { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-weight: 700; }
+  .slider input { width: 100%; accent-color: var(--accent); }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-top: 10px; }
+  .check input { accent-color: var(--accent); }
+
+  .stage { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  #view {
+    position: relative;
+    height: min(72vh, 720px); min-height: 420px;
+    border-radius: 14px; overflow: hidden;
+    background: radial-gradient(circle at 50% 40%, #222C52 0%, var(--stage) 70%);
+  }
+  #view canvas { display: block; }
+  .label {
+    color: #F7F5EF; font-size: 14px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+    background: rgba(20, 27, 51, .72);
+    border: 1px solid rgba(255,255,255,.18);
+    white-space: nowrap; cursor: pointer; pointer-events: auto;
+    transform: translateY(-18px);
+  }
+  .label.sel { background: var(--accent); border-color: var(--accent-soft); }
+  .label.dim { opacity: .55; }
+
+  .status {
+    position: absolute; left: 50%; top: 20px; transform: translateX(-50%);
+    width: min(440px, calc(100% - 32px));
+    background: rgba(255, 253, 248, .96); color: var(--ink);
+    border-radius: 12px; padding: 12px 16px; font-size: 14px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.25);
+    pointer-events: none;
+  }
+  .status[hidden] { display: none; }
+  .status.error { background: #FFF1EA; border: 1px solid var(--accent); }
+  .progress { height: 6px; background: #EDE8DC; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+  .progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .note { margin: 0; color: var(--muted); font-size: 12.5px; }
+
+  .matrix-wrap { margin: 0 24px 32px; }
+  #matrix { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px 10px; text-align: center; white-space: nowrap; }
+  th { font-weight: 700; color: var(--ink); }
+  thead th { border-bottom: 1px solid var(--line); }
+  tbody th { text-align: right; border-right: 1px solid var(--line); }
+  td { font-family: 'JetBrains Mono', monospace; color: var(--ink); }
+  td.diag { color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; padding: 8px 16px 16px; }
+    header { padding: 16px 16px 4px; }
+    .matrix-wrap { margin: 0 16px 24px; }
+    #view { height: 60vh; min-height: 360px; }
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<header>
+  <h1>キーワード距離 3D ビューア</h1>
+  <p>言葉をベクトルに変換し、意味の近さを3D空間で見るデモ（すべてブラウザ内で計算）</p>
+</header>
+
+<main class="layout">
+  <aside class="panel">
+    <section class="card">
+      <h2>キーワードを追加</h2>
+      <form id="addForm">
+        <input type="text" id="kw" placeholder="例：犬、子犬、猫" autocomplete="off">
+        <button type="submit" id="addBtn">追加</button>
+      </form>
+      <p class="hint" style="margin-top:6px">「、」「,」や改行で区切ると複数まとめて追加できます。</p>
+      <div class="row-btns">
+        <button type="button" class="ghost" id="presetBtn">サンプルを入れる</button>
+        <button type="button" class="ghost" id="clearBtn">すべて消す</button>
+      </div>
+      <ul class="chips" id="chips"></ul>
+    </section>
+
+    <section class="card">
+      <h2 id="rankTitle">近さランキング</h2>
+      <p class="hint" id="rankHint">3D上の点やキーワードをクリックすると、その言葉に近い順に並びます。</p>
+      <ol class="ranking" id="ranking"></ol>
+    </section>
+
+    <section class="card">
+      <h2>表示設定</h2>
+      <label class="slider">
+        <span>線を引く類似度のしきい値：<output id="thOut">0.50</output></span>
+        <input type="range" id="th" min="0" max="1" step="0.01" value="0.5">
+      </label>
+      <label class="check"><input type="checkbox" id="autoRotate" checked> 自動回転</label>
+    </section>
+  </aside>
+
+  <section class="stage">
+    <div id="view"></div>
+    <div class="status" id="status" hidden>
+      <div id="statusText"></div>
+      <div class="progress" id="progress" hidden><span id="progressBar"></span></div>
+    </div>
+    <p class="note">ドラッグで回転・ホイールで拡大。3Dの位置は384次元のベクトルを主成分分析（PCA）で3次元に圧縮した近似です。正確な近さはランキングと下の表（元の次元で計算したコサイン類似度）を見てください。</p>
+  </section>
+</main>
+
+<section class="card matrix-wrap">
+  <h2>類似度マトリクス（コサイン類似度：1に近いほど意味が近い）</h2>
+  <div id="matrix"><p class="hint">キーワードを2つ以上追加すると表示されます。</p></div>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ---------- 設定 ---------- */
+const MODEL_ID = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2'; // 日本語対応・384次元
+const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+const PRESET = ['犬', '子犬', '猫', 'りんご', 'バナナ', 'いちご', '電車', 'バス', '自転車'];
+const COLORS = ['#F0A673', '#7FB3F5', '#8FD19E', '#F5D06F', '#D9A3F0', '#F28B8B', '#6FD6D0', '#E8E3D6'];
+const RADIUS = 10;
+
+/* ---------- 状態 ---------- */
+const state = {
+  words: [],              // 表示中のキーワード（追加順）
+  vecs: new Map(),        // word -> number[]（正規化済みベクトル）
+  items: new Map(),       // word -> { mesh, label, pos, target, color }
+  colorIndex: new Map(),  // word -> 色番号
+  nextColor: 0,
+  selected: null,
+  threshold: 0.5,
+};
+
+/* ---------- DOM ---------- */
+const $ = (id) => document.getElementById(id);
+const view = $('view');
+
+/* ---------- 3D シーン ---------- */
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x141B33, 30, 70);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+camera.position.set(18, 12, 22);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.inset = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+view.appendChild(labelRenderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.8;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+dir.position.set(10, 20, 15);
+scene.add(dir);
+
+const grid = new THREE.GridHelper(30, 15, 0x3A4675, 0x2A3460);
+grid.position.y = -RADIUS - 2;
+scene.add(grid);
+scene.add(new THREE.Mesh(
+  new THREE.SphereGeometry(0.12, 12, 12),
+  new THREE.MeshBasicMaterial({ color: 0x5A6690 })
+)); // 原点の目印
+
+const sphereGeo = new THREE.SphereGeometry(0.55, 32, 32);
+
+// 線（LineSegments を毎フレーム更新）
+const lineGeo = new THREE.BufferGeometry();
+const lineMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9 });
+const lines = new THREE.LineSegments(lineGeo, lineMat);
+scene.add(lines);
+let linePairs = []; // { a, b, sim }
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+resize();
+
+/* ---------- モデル ---------- */
+let extractor = null;
+let loading = null;
+
+async function getExtractor() {
+  if (extractor) return extractor;
+  if (!loading) {
+    loading = (async () => {
+      setStatus('モデルを準備しています…（初回のみ約120MBをダウンロード）', 0);
+      const { pipeline, env } = await import(TRANSFORMERS_URL);
+      env.allowLocalModels = false;
+      const files = {};
+      const ex = await pipeline('feature-extraction', MODEL_ID, {
+        dtype: 'q8',
+        progress_callback: (p) => {
+          if (p.status === 'progress' && p.total) {
+            files[p.file] = [p.loaded, p.total];
+            const v = Object.values(files);
+            const loaded = v.reduce((s, x) => s + x[0], 0);
+            const total = v.reduce((s, x) => s + x[1], 0);
+            setStatus(`モデルを読み込み中… ${Math.round(loaded / total * 100)}%`, loaded / total);
+          }
+        },
+      });
+      extractor = ex;
+      return ex;
+    })().catch((e) => { loading = null; throw e; });
+  }
+  return loading;
+}
+
+async function embedMissing() {
+  const missing = state.words.filter((w) => !state.vecs.has(w));
+  if (!missing.length) return;
+  const ex = await getExtractor();
+  setStatus(`${missing.length}語をベクトルに変換中…`, null);
+  const out = await ex(missing, { pooling: 'mean', normalize: true });
+  const arr = out.tolist();
+  missing.forEach((w, i) => state.vecs.set(w, arr[i]));
+}
+
+/* ---------- 計算 ---------- */
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+const sim = (a, b) => dot(state.vecs.get(a), state.vecs.get(b)); // 正規化済みなので内積＝コサイン類似度
+
+// 少数の点向け PCA（グラム行列の固有分解をべき乗法で）
+function pca3(vectors) {
+  const n = vectors.length;
+  if (n === 0) return [];
+  const d = vectors[0].length;
+  const mean = new Float64Array(d);
+  for (const v of vectors) for (let j = 0; j < d; j++) mean[j] += v[j] / n;
+  const X = vectors.map((v) => v.map((x, j) => x - mean[j]));
+  const M = X.map((a) => X.map((b) => dot(a, b)));
+
+  const comps = [];
+  for (let k = 0; k < 3; k++) {
+    let v = Array.from({ length: n }, (_, i) => Math.sin((i + 1) * 12.9898 + (k + 1) * 78.233) + 1.5);
+    let lambda = 0;
+    for (let it = 0; it < 300; it++) {
+      const w = M.map((row) => dot(row, v));
+      const norm = Math.hypot(...w);
+      if (norm < 1e-12) { lambda = 0; break; }
+      v = w.map((x) => x / norm);
+      lambda = norm;
+    }
+    if (lambda < 1e-9) { comps.push({ v: new Array(n).fill(0), lambda: 0 }); continue; }
+    comps.push({ v, lambda });
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) M[i][j] -= lambda * v[i] * v[j];
+  }
+  return vectors.map((_, i) => comps.map((c) => c.v[i] * Math.sqrt(Math.max(c.lambda, 0))));
+}
+
+function layout() {
+  const words = state.words.filter((w) => state.vecs.has(w));
+  const coords = pca3(words.map((w) => state.vecs.get(w)));
+
+  // 追加のたびに軸の向きが反転しないよう、前回の位置に合わせて符号をそろえる
+  for (let k = 0; k < 3; k++) {
+    let s = 0;
+    words.forEach((w, i) => {
+      const it = state.items.get(w);
+      if (it) s += coords[i][k] * it.target.getComponent(k);
+    });
+    if (s < 0) coords.forEach((c) => { c[k] = -c[k]; });
+  }
+
+  const maxR = Math.max(0, ...coords.map((c) => Math.hypot(...c)));
+  const scale = maxR > 1e-9 ? RADIUS / maxR : 0;
+
+  // 不要になった点を削除
+  for (const [w, it] of [...state.items]) {
+    if (!words.includes(w)) disposeItem(w, it);
+  }
+  // 点を作成・移動先を更新
+  words.forEach((w, i) => {
+    let it = state.items.get(w);
+    if (!it) it = createItem(w);
+    it.target.set(coords[i][0] * scale, coords[i][1] * scale, coords[i][2] * scale);
+  });
+}
+
+function colorOf(w) {
+  if (!state.colorIndex.has(w)) state.colorIndex.set(w, state.nextColor++);
+  return COLORS[state.colorIndex.get(w) % COLORS.length];
+}
+
+function createItem(w) {
+  const color = colorOf(w);
+  const mesh = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({
+    color, roughness: 0.35, metalness: 0.1, emissive: color, emissiveIntensity: 0.25,
+  }));
+  mesh.userData.word = w;
+  const el = document.createElement('div');
+  el.className = 'label';
+  el.textContent = w;
+  el.addEventListener('click', (e) => { e.stopPropagation(); select(w); });
+  const label = new CSS2DObject(el);
+  mesh.add(label);
+  scene.add(mesh);
+  const it = { mesh, label, el, color, pos: new THREE.Vector3(), target: new THREE.Vector3() };
+  state.items.set(w, it);
+  return it;
+}
+
+// 点・ラベル（DOM）・マテリアルをまとめて片付ける
+function disposeItem(w, it) {
+  it.mesh.remove(it.label);
+  it.el.remove();
+  scene.remove(it.mesh);
+  it.mesh.material.dispose();
+  state.items.delete(w);
+}
+
+function clearAll() {
+  state.words = [];
+  state.selected = null;
+  for (const [w, it] of [...state.items]) disposeItem(w, it);
+  state.colorIndex.clear();
+  state.nextColor = 0;
+  renderAll();
+  setStatus('キーワードを追加してください。「サンプルを入れる」で試すこともできます。', null);
+}
+
+function buildLinePairs() {
+  const words = state.words.filter((w) => state.items.has(w));
+  linePairs = [];
+  if (state.selected && state.items.has(state.selected)) {
+    for (const w of words) if (w !== state.selected) linePairs.push({ a: state.selected, b: w, s: sim(state.selected, w) });
+  } else {
+    for (let i = 0; i < words.length; i++)
+      for (let j = i + 1; j < words.length; j++) {
+        const s = sim(words[i], words[j]);
+        if (s >= state.threshold) linePairs.push({ a: words[i], b: words[j], s });
+      }
+  }
+  const pos = new Float32Array(linePairs.length * 6);
+  const col = new Float32Array(linePairs.length * 6);
+  const far = new THREE.Color(0x2E3966), near = new THREE.Color(0xF0A673), c = new THREE.Color();
+  linePairs.forEach((p, i) => {
+    const t = Math.min(1, Math.max(0, p.s));
+    c.copy(far).lerp(near, t * t);
+    col.set([c.r, c.g, c.b, c.r, c.g, c.b], i * 6);
+  });
+  lineGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  lineGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+}
+
+function updateLinePositions() {
+  const attr = lineGeo.getAttribute('position');
+  if (!attr) return;
+  linePairs.forEach((p, i) => {
+    const a = state.items.get(p.a), b = state.items.get(p.b);
+    if (!a || !b) return;
+    attr.array.set([a.pos.x, a.pos.y, a.pos.z, b.pos.x, b.pos.y, b.pos.z], i * 6);
+  });
+  attr.needsUpdate = true;
+}
+
+/* ---------- 表示更新 ---------- */
+function setStatus(text, progress, isError = false) {
+  const box = $('status');
+  if (!text) { box.hidden = true; return; }
+  box.hidden = false;
+  box.classList.toggle('error', isError);
+  $('statusText').textContent = text;
+  const bar = $('progress');
+  if (progress == null) { bar.hidden = true; } else { bar.hidden = false; $('progressBar').style.width = `${Math.round(progress * 100)}%`; }
+}
+
+function renderChips() {
+  const ul = $('chips');
+  ul.innerHTML = '';
+  for (const w of state.words) {
+    const li = document.createElement('li');
+    li.className = 'chip' + (w === state.selected ? ' sel' : '');
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = colorOf(w);
+    const name = document.createElement('button');
+    name.type = 'button'; name.className = 'name'; name.textContent = w;
+    name.addEventListener('click', () => select(w));
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'del'; del.textContent = '×';
+    del.setAttribute('aria-label', `${w} を削除`);
+    del.addEventListener('click', () => removeWord(w));
+    li.append(dot, name, del);
+    ul.appendChild(li);
+  }
+}
+
+function renderRanking() {
+  const ol = $('ranking');
+  ol.innerHTML = '';
+  const sel = state.selected;
+  if (!sel || !state.vecs.has(sel)) {
+    $('rankTitle').textContent = '近さランキング';
+    $('rankHint').hidden = false;
+    return;
+  }
+  $('rankTitle').textContent = `「${sel}」に近い順`;
+  $('rankHint').hidden = true;
+  const rows = state.words.filter((w) => w !== sel && state.vecs.has(w))
+    .map((w) => ({ w, s: sim(sel, w) }))
+    .sort((a, b) => b.s - a.s);
+  for (const r of rows) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="w"></span><span class="bar"><span></span></span><span class="v"></span>`;
+    li.querySelector('.w').textContent = r.w;
+    li.querySelector('.bar span').style.width = `${Math.max(0, Math.min(1, r.s)) * 100}%`;
+    li.querySelector('.v').textContent = r.s.toFixed(3);
+    ol.appendChild(li);
+  }
+}
+
+function renderMatrix() {
+  const box = $('matrix');
+  const words = state.words.filter((w) => state.vecs.has(w));
+  if (words.length < 2) { box.innerHTML = '<p class="hint">キーワードを2つ以上追加すると表示されます。</p>'; return; }
+  const table = document.createElement('table');
+  const thead = table.createTHead().insertRow();
+  thead.appendChild(document.createElement('th'));
+  for (const w of words) { const th = document.createElement('th'); th.textContent = w; thead.appendChild(th); }
+  const tbody = table.createTBody();
+  for (const a of words) {
+    const tr = tbody.insertRow();
+    const th = document.createElement('th'); th.textContent = a; tr.appendChild(th);
+    for (const b of words) {
+      const td = tr.insertCell();
+      if (a === b) { td.textContent = '—'; td.className = 'diag'; continue; }
+      const s = sim(a, b);
+      td.textContent = s.toFixed(2);
+      td.style.background = `rgba(181, 83, 31, ${Math.max(0, Math.min(1, s)) * 0.75})`;
+      if (s > 0.6) td.style.color = '#FFFDF8';
+    }
+  }
+  box.innerHTML = '';
+  box.appendChild(table);
+}
+
+function refreshSelectionStyles() {
+  for (const [w, it] of state.items) {
+    const isSel = w === state.selected;
+    it.el.classList.toggle('sel', isSel);
+    it.el.classList.toggle('dim', !!state.selected && !isSel);
+    it.mesh.scale.setScalar(isSel ? 1.6 : 1);
+  }
+}
+
+function renderAll() {
+  renderChips();
+  renderRanking();
+  renderMatrix();
+  buildLinePairs();
+  refreshSelectionStyles();
+  saveHash();
+}
+
+/* ---------- 操作 ---------- */
+let chain = Promise.resolve();
+function schedule() {
+  chain = chain.then(async () => {
+    $('addBtn').disabled = true;
+    try {
+      await embedMissing();
+      layout();
+      renderAll();
+      setStatus(state.words.length < 2 ? 'キーワードを2つ以上追加すると、距離が見えてきます。' : null, null);
+    } catch (e) {
+      console.error(e);
+      setStatus(`モデルを読み込めませんでした。インターネット接続を確認してください（jsDelivr と Hugging Face へのアクセスが必要です）。詳細：${e.message || e}`, null, true);
+      renderChips();
+    } finally {
+      $('addBtn').disabled = false;
+    }
+  });
+}
+
+function addWords(text) {
+  const list = text.split(/[、,，\n\t]+/).map((s) => s.trim()).filter(Boolean);
+  let added = false;
+  for (const w of list) if (!state.words.includes(w)) { state.words.push(w); added = true; }
+  if (added) { renderChips(); schedule(); }
+}
+
+function removeWord(w) {
+  state.words = state.words.filter((x) => x !== w);
+  if (state.selected === w) state.selected = null;
+  schedule();
+}
+
+function select(w) {
+  state.selected = state.selected === w ? null : w;
+  renderChips();
+  renderRanking();
+  buildLinePairs();
+  refreshSelectionStyles();
+}
+
+$('addForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  addWords($('kw').value);
+  $('kw').value = '';
+});
+$('presetBtn').addEventListener('click', () => addWords(PRESET.join('、')));
+$('clearBtn').addEventListener('click', () => { chain = chain.then(clearAll); });
+$('th').addEventListener('input', (e) => {
+  state.threshold = Number(e.target.value);
+  $('thOut').textContent = state.threshold.toFixed(2);
+  buildLinePairs();
+});
+$('autoRotate').addEventListener('change', (e) => { controls.autoRotate = e.target.checked; });
+
+// 3D上の点をクリックして選択（ドラッグとは区別）
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObjects([...state.items.values()].map((it) => it.mesh))[0];
+  if (hit) select(hit.object.userData.word);
+  else if (state.selected) select(state.selected); // 何もない所をクリックで選択解除
+});
+
+/* ---------- URL に保存（共有用） ---------- */
+function saveHash() {
+  const h = state.words.length ? '#w=' + encodeURIComponent(state.words.join(',')) : ' ';
+  history.replaceState(null, '', h === ' ' ? location.pathname + location.search : h);
+}
+function loadHash() {
+  const m = location.hash.match(/^#w=(.+)$/);
+  if (m) addWords(decodeURIComponent(m[1]));
+}
+
+/* ---------- ループ ---------- */
+function tick() {
+  for (const it of state.items.values()) {
+    it.pos.lerp(it.target, 0.12);
+    it.mesh.position.copy(it.pos);
+  }
+  updateLinePositions();
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+setStatus('キーワードを追加してください。「サンプルを入れる」で試すこともできます。', null);
+loadHash();
+</script>
+</body>
+</html>
