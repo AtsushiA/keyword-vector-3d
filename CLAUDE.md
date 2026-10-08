@@ -13,6 +13,11 @@ UI の文言は日本語で書く。
 - 計算はすべてブラウザ内で行う。外部 API や API キーは使わない。
 - 見た目は勉強会スライドの配色に合わせる。CSS 変数は `:root` に定義している。
   - navy `#1B2340` / cream `#F7F5EF` / accent `#B5531F` / stage `#141B33`
+- ライト / ダークの 2 テーマに対応している。
+  - 色を足すときは直書きせず、CSS 変数を `:root`、`:root[data-theme="dark"]`、`@media (prefers-color-scheme: dark)` の 3 か所に定義する。
+  - 3D ステージはどちらのテーマでも暗色のまま。
+  - テーマ切り替えのコードはモジュールとは別の通常 `<script>` に置く。CDN の読み込みに失敗しても切り替えが動くようにするため。
+  - 選択は `localStorage` の `kv3d-theme` に保存する。`<head>` の小さなスクリプトで描画前に反映し、ちらつきを防いでいる。
 
 ## コード構成（`index.html` の `<script type="module">`）
 

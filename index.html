@@ -18,6 +18,53 @@
     --accent-soft: #F0A673;
     --stage: #141B33;
     --stage-ink: #C9CFDF;
+    --field: #FFFFFF;
+    --track: #EDE8DC;
+    --btn-bg: #1B2340;
+    --btn-ink: #F7F5EF;
+    --status-bg: rgba(255, 253, 248, .96);
+    --error-bg: #FFF1EA;
+    --stage-border: transparent;
+    color-scheme: light;
+  }
+  /* ダークモード：明示指定、または OS 設定がダークで明示指定がないとき */
+  :root[data-theme="dark"] {
+    --bg: #10152A;
+    --panel: #1A2140;
+    --line: #2E3866;
+    --ink: #ECE8DE;
+    --ink-soft: #B9BFD0;
+    --muted: #8F96AC;
+    --accent: #F0A673;
+    --accent-soft: #B5531F;
+    --field: #121933;
+    --track: #2E3866;
+    --btn-bg: #F0A673;
+    --btn-ink: #1B2340;
+    --status-bg: rgba(26, 33, 64, .96);
+    --error-bg: #3A2320;
+    --stage-border: #2E3866;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10152A;
+      --panel: #1A2140;
+      --line: #2E3866;
+      --ink: #ECE8DE;
+      --ink-soft: #B9BFD0;
+      --muted: #8F96AC;
+      --accent: #F0A673;
+      --accent-soft: #B5531F;
+      --field: #121933;
+      --track: #2E3866;
+      --btn-bg: #F0A673;
+      --btn-ink: #1B2340;
+      --status-bg: rgba(26, 33, 64, .96);
+      --error-bg: #3A2320;
+      --stage-border: #2E3866;
+      color-scheme: dark;
+    }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -27,11 +74,17 @@
     font-family: 'Noto Sans JP', system-ui, sans-serif;
     font-size: 15px;
     line-height: 1.6;
+    transition: background-color .2s, color .2s;
   }
   header {
     padding: 20px 24px 8px;
-    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px;
   }
+  .theme-toggle {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .theme-toggle .icon { font-size: 15px; line-height: 1; }
   header h1 { margin: 0; font-size: 22px; font-weight: 700; }
   header p { margin: 0; color: var(--muted); font-size: 13px; }
 
@@ -56,14 +109,14 @@
     font: inherit; color: var(--ink);
     padding: 9px 12px;
     border: 1px solid var(--line); border-radius: 10px;
-    background: #fff;
+    background: var(--field);
   }
   input[type=text]:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   button {
     font: inherit; font-weight: 700; cursor: pointer;
     border: none; border-radius: 10px;
     padding: 9px 16px;
-    background: var(--ink); color: #F7F5EF;
+    background: var(--btn-bg); color: var(--btn-ink);
   }
   button:hover { filter: brightness(1.15); }
   button:disabled { opacity: .5; cursor: default; }
@@ -77,7 +130,7 @@
   .chips { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
   .chip {
     display: inline-flex; align-items: center; gap: 2px;
-    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    background: var(--field); border: 1px solid var(--line); border-radius: 999px;
     padding: 2px 4px 2px 10px; font-size: 14px;
   }
   .chip.sel { border-color: var(--accent); box-shadow: 0 0 0 2px #F0A67366; }
@@ -89,7 +142,7 @@
   .ranking { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   .ranking li { display: grid; grid-template-columns: 7em 1fr 3.6em; gap: 8px; align-items: center; font-size: 14px; }
   .ranking .w { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ranking .bar { height: 10px; background: #EDE8DC; border-radius: 999px; overflow: hidden; }
+  .ranking .bar { height: 10px; background: var(--track); border-radius: 999px; overflow: hidden; }
   .ranking .bar span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
   .ranking .v { font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; color: var(--ink-soft); }
 
@@ -104,6 +157,7 @@
     position: relative;
     height: min(72vh, 720px); min-height: 420px;
     border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--stage-border);
     background: radial-gradient(circle at 50% 40%, #222C52 0%, var(--stage) 70%);
   }
   #view canvas { display: block; }
@@ -121,14 +175,14 @@
   .status {
     position: absolute; left: 50%; top: 20px; transform: translateX(-50%);
     width: min(440px, calc(100% - 32px));
-    background: rgba(255, 253, 248, .96); color: var(--ink);
+    background: var(--status-bg); color: var(--ink);
     border-radius: 12px; padding: 12px 16px; font-size: 14px;
     box-shadow: 0 6px 24px rgba(0,0,0,.25);
     pointer-events: none;
   }
   .status[hidden] { display: none; }
-  .status.error { background: #FFF1EA; border: 1px solid var(--accent); }
-  .progress { height: 6px; background: #EDE8DC; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+  .status.error { background: var(--error-bg); border: 1px solid var(--accent); }
+  .progress { height: 6px; background: var(--track); border-radius: 999px; overflow: hidden; margin-top: 8px; }
   .progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
   .note { margin: 0; color: var(--muted); font-size: 12.5px; }
 
@@ -157,11 +211,21 @@
   }
 }
 </script>
+<script>
+  // 描画前に保存済みのテーマを反映（ちらつき防止）
+  try {
+    const t = localStorage.getItem('kv3d-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
 </head>
 <body>
 <header>
   <h1>キーワード距離 3D ビューア</h1>
   <p>言葉をベクトルに変換し、意味の近さを3D空間で見るデモ（すべてブラウザ内で計算）</p>
+  <button type="button" class="ghost theme-toggle" id="themeBtn" aria-pressed="false">
+    <span class="icon" aria-hidden="true">☾</span><span class="text">ダークモード</span>
+  </button>
 </header>
 
 <main class="layout">
@@ -210,6 +274,32 @@
   <h2>類似度マトリクス（コサイン類似度：1に近いほど意味が近い）</h2>
   <div id="matrix"><p class="hint">キーワードを2つ以上追加すると表示されます。</p></div>
 </section>
+
+<script>
+/* ---------- テーマ切り替え（3D の読み込みに失敗しても動くよう通常スクリプトで） ---------- */
+(() => {
+  const root = document.documentElement;
+  const btn = document.getElementById('themeBtn');
+  const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  const currentTheme = () => root.dataset.theme || (darkQuery.matches ? 'dark' : 'light');
+
+  function updateButton() {
+    const dark = currentTheme() === 'dark';
+    btn.setAttribute('aria-pressed', String(dark));
+    btn.querySelector('.icon').textContent = dark ? '☀' : '☾';
+    btn.querySelector('.text').textContent = dark ? 'ライトモード' : 'ダークモード';
+  }
+
+  btn.addEventListener('click', () => {
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    try { localStorage.setItem('kv3d-theme', next); } catch (e) {}
+    updateButton();
+  });
+  darkQuery.addEventListener('change', updateButton); // 明示指定がないときは OS 設定に追従
+  updateButton();
+})();
+</script>
 
 <script type="module">
 import * as THREE from 'three';
